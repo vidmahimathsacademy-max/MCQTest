@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Online MCQ Test</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#1b2a4a;
+    --navy-deep:#101a30;
+    --paper:#f4f6f7;
+    --paper-line:#dfe6e8;
+    --gold:#d9a441;
+    --teal:#2d6e63;
+    --ink:#1b2a4a;
+    --muted:#5c6b7a;
+    --white:#ffffff;
+    --danger:#b03a2e;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+    background:
+      linear-gradient(var(--paper-line) 1px, transparent 1px) 0 0/40px 40px,
+      linear-gradient(90deg, var(--paper-line) 1px, transparent 1px) 0 0/40px 40px,
+      var(--paper);
+    min-height:100vh;
+  }
+  .wrap{ max-width:640px; margin:0 auto; padding:48px 20px 80px; }
+  .hidden{ display:none !important; }
+
+  .hero{ text-align:center; margin-bottom:30px; }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--teal); margin-bottom:10px;
+  }
+  h1{ font-family:'Newsreader',serif; font-weight:600; font-size:2.2rem; line-height:1.15; margin:0 0 8px; }
+  .sub{ color:var(--muted); font-size:1rem; margin:0 auto; max-width:42ch; }
+
+  .card{
+    background:var(--white);
+    border:1px solid var(--paper-line);
+    border-radius:var(--radius);
+    padding:30px;
+    box-shadow:0 1px 2px rgba(16,26,48,.04);
+  }
+
+  /* Sign-in */
+  #signinBtnHolder{ display:flex; justify-content:center; margin-top:6px; }
+  .signin-note{ text-align:center; margin-top:16px; color:var(--muted); font-size:.8rem; }
+
+  /* Instructions */
+  #instructionsScreen h2{ font-family:'Newsreader',serif; font-size:1.4rem; margin:0 0 16px; }
+  #instructionsScreen ol{ margin:0 0 22px; padding-left:22px; color:var(--ink); font-size:.92rem; line-height:1.7; }
+  #instructionsScreen li{ margin-bottom:6px; }
+  .confirm{
+    display:flex; gap:10px; align-items:flex-start;
+    background:rgba(217,164,65,.09);
+    border:1px solid rgba(217,164,65,.35);
+    border-radius:8px; padding:14px; margin-bottom:20px;
+    font-size:.86rem; color:var(--navy);
+  }
+  .confirm input{ margin-top:3px; }
+
+  button.primary{
+    width:100%; background:var(--navy); color:var(--white);
+    border:none; border-radius:8px; padding:14px;
+    font-size:.95rem; font-weight:600; cursor:pointer;
+  }
+  button.primary:disabled{ background:#a9b3c4; cursor:not-allowed; }
+  button.primary:not(:disabled):hover{ background:var(--navy-deep); }
+
+  /* Exam top bar */
+  #topBar{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--navy); color:var(--white);
+    border-radius:8px; padding:12px 16px; margin-bottom:20px;
+    font-size:.85rem;
+  }
+  #topBar .em{ font-family:'IBM Plex Mono',monospace; }
+  #topBar .lbl{ display:block; font-size:.7rem; letter-spacing:.06em; text-transform:uppercase; color:#c9d4e8; margin-bottom:2px; }
+  #timer{ font-family:'IBM Plex Mono',monospace; font-size:1.1rem; font-weight:600; }
+  #timer.low{ color:#ff9b8a; }
+
+  .progress-track{
+    height:6px; background:var(--paper-line); border-radius:4px; margin-bottom:22px; overflow:hidden;
+  }
+  .progress-fill{ height:100%; background:var(--teal); border-radius:4px; transition:width .2s; }
+
+  #qMeta{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--teal); margin-bottom:10px;
+  }
+  #qText{ font-size:1.08rem; line-height:1.5; margin:0 0 22px; white-space:pre-wrap; }
+
+  .option{
+    display:flex; align-items:flex-start; gap:12px;
+    border:1.5px solid var(--paper-line); border-radius:8px;
+    padding:13px 14px; margin-bottom:10px; cursor:pointer; transition:.15s;
+  }
+  .option:hover{ border-color:var(--teal); }
+  .option.selected{ border-color:var(--teal); background:rgba(45,110,99,.08); }
+  .option input[type="radio"]{ margin-top:2px; accent-color:var(--teal); flex-shrink:0; }
+  .option span{ font-size:.95rem; }
+
+  #remarksBox{
+    margin-top:6px; margin-bottom:22px; font-size:.85rem; color:var(--muted);
+    background:var(--paper); border:1px dashed var(--paper-line); border-radius:8px; padding:10px 12px;
+  }
+
+  #resultScreen{ text-align:center; padding:16px 4px; }
+  #resultScreen .glyph{ font-family:'Newsreader',serif; font-size:2.4rem; color:var(--teal); }
+  #resultScreen h2{ font-family:'Newsreader',serif; margin:8px 0 4px; }
+  #scoreLine{ font-size:1.6rem; font-weight:700; color:var(--navy); margin:14px 0 6px; }
+  #resultScreen p.note{ color:var(--muted); font-size:.9rem; }
+
+  footer{ text-align:center; margin-top:30px; color:var(--muted); font-size:.78rem; font-family:'IBM Plex Mono',monospace; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero" id="hero">
+    <div class="eyebrow">Online Assessment</div>
+    <h1>Online MCQ Test</h1>
+    <p class="sub" id="heroSub">Sign in with Google to begin.</p>
+  </div>
+
+  <!-- 1. Sign in -->
+  <div class="card" id="signinScreen">
+    <div id="signinBtnHolder"></div>
+    <p class="signin-note">Sign in with Google to continue</p>
+  </div>
+
+  <!-- 2. Instructions -->
+  <div class="card hidden" id="instructionsScreen">
+    <h2>Instructions</h2>
+    <ol>
+      <li>This test contains multiple-choice questions, each with a fixed number of marks.</li>
+      <li>You will see one question at a time. Select an option to enable the Next button.</li>
+      <li>Every question must be answered before you can move to the next one.</li>
+      <li>You cannot go back to a previous question once you move forward.</li>
+      <li>The test is timed — a countdown is shown at the top. The test auto-submits when time runs out.</li>
+      <li>Click Submit Exam on the last question to finish and see your score.</li>
+    </ol>
+    <label class="confirm">
+      <input type="checkbox" id="confirmCheck">
+      <span>I have read and understood the instructions above.</span>
+    </label>
+    <button class="primary" id="startBtn" disabled>Start Test</button>
+  </div>
+
+  <!-- 3. Exam -->
+  <div class="hidden" id="examScreen">
+    <div id="topBar">
+      <div><span class="lbl">Candidate</span><span class="em" id="candidateEmail"></span></div>
+      <div><span class="lbl" style="text-align:right;">Time left</span><span id="timer">--:--</span></div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="card">
+      <div id="qMeta"></div>
+      <p id="qText"></p>
+      <div id="optionsHolder"></div>
+      <div id="remarksBox" class="hidden"></div>
+      <button class="primary" id="nextBtn" disabled>Next</button>
+    </div>
+  </div>
+
+  <!-- 4. Result -->
+  <div class="card hidden" id="resultScreen">
+    <div class="glyph">✓</div>
+    <h2>Test submitted</h2>
+    <div id="scoreLine"></div>
+    <p class="note">Your result has been recorded.</p>
+  </div>
+
+  <footer>ONLINE MCQ TEST</footer>
+</div>
+
+<script>
+  // ============== CONFIG — fill these in ==============
+  const GOOGLE_CLIENT_ID = "713885515695-v5c76ugjf9v4u6i5cb4d08g570942t0j.apps.googleusercontent.com";
+  const APPS_SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbzwpuT6H7l5UoAWWW1NeOx4RDwQeL7cnxa1Qk-TQbiRiCZOKapTQBnoLPMeIqAFrAks/exec";
+  // ======================================================
+
+  let userEmail = null;
+  let questions = [];
+  let currentIndex = 0;
+  let answers = {};              // { qNo: optionNumberString }
+  let timeLimitSeconds = 30 * 60;
+  let secondsLeft = 0;
+  let timerHandle = null;
+  let examStartTime = null;
+  let submitted = false;
+
+  function parseJwt(token) {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = decodeURIComponent(atob(base64).split('').map(c =>
+      '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+    ).join(''));
+    return JSON.parse(json);
+  }
+
+  function handleCredentialResponse(response) {
+    const payload = parseJwt(response.credential);
+    userEmail = payload.email;
+    document.getElementById('signinScreen').classList.add('hidden');
+    document.getElementById('heroSub').textContent = 'Please read the instructions below before you begin.';
+    document.getElementById('instructionsScreen').classList.remove('hidden');
+  }
+
+  window.onload = function () {
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleCredentialResponse
+    });
+    google.accounts.id.renderButton(
+      document.getElementById('signinBtnHolder'),
+      { theme: 'outline', size: 'large', shape: 'pill', text: 'signin_with' }
+    );
+  };
+
+  document.getElementById('confirmCheck').addEventListener('change', function (e) {
+    document.getElementById('startBtn').disabled = !e.target.checked;
+  });
+
+  document.getElementById('startBtn').addEventListener('click', function () {
+    this.disabled = true;
+    this.textContent = 'Loading questions...';
+    fetch(APPS_SCRIPT_URL + '?action=getQuestions')
+      .then(r => r.json())
+      .then(data => {
+        questions = data.questions || [];
+        timeLimitSeconds = (data.timeLimitMinutes || 30) * 60;
+        if (questions.length === 0) {
+          alert('No questions were found. Please check the Google Doc formatting.');
+          this.disabled = false;
+          this.textContent = 'Start Test';
+          return;
+        }
+        beginExam();
+      })
+      .catch(err => {
+        alert('Could not load questions: ' + err.message);
+        this.disabled = false;
+        this.textContent = 'Start Test';
+      });
+  });
+
+  function beginExam() {
+    document.getElementById('hero').classList.add('hidden');
+    document.getElementById('instructionsScreen').classList.add('hidden');
+    document.getElementById('examScreen').classList.remove('hidden');
+    document.getElementById('candidateEmail').textContent = userEmail;
+
+    examStartTime = Date.now();
+    secondsLeft = timeLimitSeconds;
+    updateTimerDisplay();
+    timerHandle = setInterval(function () {
+      secondsLeft--;
+      updateTimerDisplay();
+      if (secondsLeft <= 0) {
+        clearInterval(timerHandle);
+        submitExam(true);
+      }
+    }, 1000);
+
+    currentIndex = 0;
+    renderQuestion();
+  }
+
+  function updateTimerDisplay() {
+    const m = Math.max(0, Math.floor(secondsLeft / 60));
+    const s = Math.max(0, secondsLeft % 60);
+    const el = document.getElementById('timer');
+    el.textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    el.classList.toggle('low', secondsLeft <= 60);
+  }
+
+  function renderQuestion() {
+    const q = questions[currentIndex];
+    document.getElementById('progressFill').style.width = (((currentIndex) / questions.length) * 100) + '%';
+    document.getElementById('qMeta').textContent = 'Question ' + (currentIndex + 1) + ' of ' + questions.length;
+    document.getElementById('qText').textContent = q.questionText;
+
+    const holder = document.getElementById('optionsHolder');
+    holder.innerHTML = '';
+    q.options.forEach(function (optText, idx) {
+      if (!optText) return;
+      const optNum = idx + 1;
+      const wrap = document.createElement('label');
+      wrap.className = 'option';
+      wrap.innerHTML =
+        '<input type="radio" name="opt" value="' + optNum + '">' +
+        '<span></span>';
+      wrap.querySelector('span').textContent = optText;
+      wrap.querySelector('input').addEventListener('change', function () {
+        document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+        wrap.classList.add('selected');
+        document.getElementById('nextBtn').disabled = false;
+      });
+      holder.appendChild(wrap);
+    });
+
+    const remarksBox = document.getElementById('remarksBox');
+    if (q.remarks) {
+      remarksBox.textContent = 'Note: ' + q.remarks;
+      remarksBox.classList.remove('hidden');
+    } else {
+      remarksBox.classList.add('hidden');
+    }
+
+    const nextBtn = document.getElementById('nextBtn');
+    nextBtn.disabled = true;
+    nextBtn.textContent = (currentIndex === questions.length - 1) ? 'Submit Exam' : 'Next';
+  }
+
+  document.getElementById('nextBtn').addEventListener('click', function () {
+    const selected = document.querySelector('.option input[type="radio"]:checked');
+    if (!selected) return; // safety, button should already be disabled
+    const q = questions[currentIndex];
+    answers[q.qNo] = selected.value;
+
+    if (currentIndex === questions.length - 1) {
+      submitExam(false);
+    } else {
+      currentIndex++;
+      renderQuestion();
+    }
+  });
+
+  function submitExam(timedOut) {
+    if (submitted) return;
+    submitted = true;
+    clearInterval(timerHandle);
+
+    document.getElementById('examScreen').classList.add('hidden');
+    const timeTakenSeconds = Math.round((Date.now() - examStartTime) / 1000);
+
+    fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'submitExam',
+        email: userEmail,
+        answers: answers,
+        timeTakenSeconds: timeTakenSeconds
+      })
+    })
+      .then(r => r.json())
+      .then(result => {
+        const resultScreen = document.getElementById('resultScreen');
+        resultScreen.classList.remove('hidden');
+        if (result.result === 'success') {
+          document.getElementById('scoreLine').textContent = result.score + ' / ' + result.total;
+          if (timedOut) {
+            document.querySelector('#resultScreen p.note').textContent = 'Time ran out — your answers so far were recorded.';
+          }
+        } else {
+          document.getElementById('scoreLine').textContent = 'Submitted';
+          document.querySelector('#resultScreen p.note').textContent = 'There was an issue calculating your score, but your answers were received. (' + (result.error || '') + ')';
+        }
+      })
+      .catch(err => {
+        document.getElementById('resultScreen').classList.remove('hidden');
+        document.getElementById('scoreLine').textContent = 'Submitted';
+        document.querySelector('#resultScreen p.note').textContent = 'Could not confirm your score due to a network error: ' + err.message;
+      });
+  }
+</script>
+</body>
+</html>
