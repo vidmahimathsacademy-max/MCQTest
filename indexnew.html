@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Online MCQ Test</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#1b2a4a;
+    --navy-deep:#101a30;
+    --paper:#f4f6f7;
+    --paper-line:#dfe6e8;
+    --gold:#d9a441;
+    --teal:#2d6e63;
+    --ink:#1b2a4a;
+    --muted:#5c6b7a;
+    --white:#ffffff;
+    --danger:#b03a2e;
+    --blue:#3f7fd1;
+    --green:#2f9e57;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+    background:
+      linear-gradient(var(--paper-line) 1px, transparent 1px) 0 0/40px 40px,
+      linear-gradient(90deg, var(--paper-line) 1px, transparent 1px) 0 0/40px 40px,
+      var(--paper);
+    min-height:100vh;
+  }
+  .hidden{ display:none !important; }
+
+  /* ---------- Persistent header ---------- */
+  .site-header{
+    position:sticky; top:0; z-index:50;
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--white); border-bottom:1px solid var(--paper-line);
+    padding:12px 22px;
+  }
+  .logo-mini{ display:flex; align-items:center; gap:10px; }
+  .logo-mini img{ height:36px; width:auto; display:block; }
+  .logo-mini .logo-fallback{
+    height:36px; width:36px; border-radius:10px; background:var(--navy); color:var(--gold);
+    font-family:'Newsreader',serif; font-size:1.2rem; display:flex; align-items:center; justify-content:center;
+  }
+  .logo-mini .brandname{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+  }
+  .calc-toggle-btn{
+    display:flex; align-items:center; gap:8px;
+    background:var(--white); color:var(--navy); border:1.5px solid var(--paper-line);
+    border-radius:20px; padding:8px 16px; font-size:.85rem; font-weight:600; cursor:pointer;
+    transition:.15s;
+  }
+  .calc-toggle-btn:hover{ border-color:var(--teal); color:var(--teal); }
+
+  /* ---------- Layout wrap ---------- */
+  .wrap{ max-width:640px; margin:0 auto; padding:40px 20px 80px; transition:max-width .2s; }
+  body.exam-active .wrap{ max-width:1000px; }
+
+  .hero{ text-align:center; margin-bottom:30px; }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--teal); margin-bottom:10px;
+  }
+  h1{ font-family:'Newsreader',serif; font-weight:600; font-size:2.2rem; line-height:1.15; margin:0 0 8px; }
+  .sub{ color:var(--muted); font-size:1rem; margin:0 auto; max-width:42ch; }
+
+  .card{
+    background:var(--white);
+    border:1px solid var(--paper-line);
+    border-radius:var(--radius);
+    padding:30px;
+    box-shadow:0 1px 2px rgba(16,26,48,.04);
+  }
+
+  /* Sign-in */
+  #signinBtnHolder{ display:flex; justify-content:center; margin-top:6px; }
+  .signin-note{ text-align:center; margin-top:16px; color:var(--muted); font-size:.8rem; }
+
+  /* Instructions */
+  #instructionsScreen h2{ font-family:'Newsreader',serif; font-size:1.4rem; margin:0 0 16px; }
+  #instructionsScreen ol{ margin:0 0 22px; padding-left:22px; color:var(--ink); font-size:.92rem; line-height:1.7; }
+  #instructionsScreen li{ margin-bottom:6px; }
+  .confirm{
+    display:flex; gap:10px; align-items:flex-start;
+    background:rgba(217,164,65,.09);
+    border:1px solid rgba(217,164,65,.35);
+    border-radius:8px; padding:14px; margin-bottom:20px;
+    font-size:.86rem; color:var(--navy);
+  }
+  .confirm input{ margin-top:3px; }
+
+  button.primary{
+    width:100%; background:var(--navy); color:var(--white);
+    border:none; border-radius:8px; padding:14px;
+    font-size:.95rem; font-weight:600; cursor:pointer;
+  }
+  button.primary:disabled{ background:#a9b3c4; cursor:not-allowed; }
+  button.primary:not(:disabled):hover{ background:var(--navy-deep); }
+
+  /* ---------- Exam grid: palette + main ---------- */
+  .exam-grid{ display:grid; grid-template-columns:180px 1fr; gap:20px; align-items:start; }
+  @media (max-width:700px){ .exam-grid{ grid-template-columns:1fr; } .q-palette{ order:2; position:static; } }
+
+  .q-palette{
+    background:var(--white); border:1px solid var(--paper-line); border-radius:10px;
+    padding:16px; position:sticky; top:76px;
+  }
+  .palette-title{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:12px;
+  }
+  .palette-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:16px; }
+  @media (max-width:700px){ .palette-grid{ grid-template-columns:repeat(8,1fr); } }
+  .q-circle{
+    width:32px; height:32px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:.78rem; font-weight:700; color:var(--white);
+    background:var(--blue); border:2px solid transparent; cursor:default;
+    transition:.15s;
+  }
+  .q-circle.answered{ background:var(--green); }
+  .q-circle.current{ border-color:var(--gold); box-shadow:0 0 0 3px rgba(217,164,65,.25); }
+
+  .palette-legend{ font-size:.75rem; color:var(--muted); display:flex; flex-direction:column; gap:8px; }
+  .palette-legend .row{ display:flex; align-items:center; gap:8px; }
+  .dot{ width:11px; height:11px; border-radius:50%; flex-shrink:0; }
+  .dot.unanswered{ background:var(--blue); }
+  .dot.answered{ background:var(--green); }
+
+  /* Exam top bar */
+  #topBar{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--navy); color:var(--white);
+    border-radius:8px; padding:12px 16px; margin-bottom:20px;
+    font-size:.85rem;
+  }
+  #topBar .em{ font-family:'IBM Plex Mono',monospace; }
+  #topBar .lbl{ display:block; font-size:.7rem; letter-spacing:.06em; text-transform:uppercase; color:#c9d4e8; margin-bottom:2px; }
+  #timer{ font-family:'IBM Plex Mono',monospace; font-size:1.1rem; font-weight:600; }
+  #timer.low{ color:#ff9b8a; }
+
+  .progress-track{
+    height:6px; background:var(--paper-line); border-radius:4px; margin-bottom:22px; overflow:hidden;
+  }
+  .progress-fill{ height:100%; background:var(--teal); border-radius:4px; transition:width .2s; }
+
+  #qMeta{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--teal); margin-bottom:10px;
+  }
+  #qText{ font-size:1.08rem; line-height:1.5; margin:0 0 10px; white-space:pre-wrap; }
+
+  .q-images{ margin:0 0 22px; display:flex; flex-direction:column; gap:10px; }
+  .q-images img{
+    max-width:100%; height:auto; border:1px solid var(--paper-line); border-radius:8px; display:block;
+  }
+
+  .option{
+    display:flex; align-items:flex-start; gap:12px;
+    border:1.5px solid var(--paper-line); border-radius:8px;
+    padding:13px 14px; margin-bottom:10px; cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+    transform-origin:center left;
+    position:relative;
+  }
+  .option:hover{
+    transform:scale(1.025);
+    box-shadow:0 6px 18px rgba(16,26,48,.12);
+    border-color:var(--teal);
+    z-index:2;
+  }
+  .option.selected{ border-color:var(--teal); background:rgba(45,110,99,.08); }
+  .option input[type="radio"]{ margin-top:2px; accent-color:var(--teal); flex-shrink:0; }
+  .option .opt-body{ display:flex; flex-direction:column; gap:8px; flex:1; }
+  .option span.opt-text{ font-size:.95rem; }
+  .option img{ max-width:100%; height:auto; max-height:220px; border:1px solid var(--paper-line); border-radius:6px; display:block; }
+
+  #remarksBox{
+    margin-top:6px; margin-bottom:22px; font-size:.85rem; color:var(--muted);
+    background:var(--paper); border:1px dashed var(--paper-line); border-radius:8px; padding:10px 12px;
+  }
+
+  #resultScreen{ text-align:center; padding:16px 4px; }
+  #resultScreen .glyph{ font-family:'Newsreader',serif; font-size:2.4rem; color:var(--teal); }
+  #resultScreen h2{ font-family:'Newsreader',serif; margin:8px 0 4px; }
+  #scoreLine{ font-size:1.6rem; font-weight:700; color:var(--navy); margin:14px 0 6px; }
+  #resultScreen p.note{ color:var(--muted); font-size:.9rem; }
+
+  footer{ text-align:center; margin-top:30px; color:var(--muted); font-size:.78rem; font-family:'IBM Plex Mono',monospace; }
+
+  /* ---------- Calculator ---------- */
+  .calc-modal{
+    position:fixed; top:70px; right:20px; width:260px; z-index:100;
+    background:var(--white); border:1px solid var(--paper-line); border-radius:12px;
+    box-shadow:0 12px 32px rgba(16,26,48,.2); padding:16px;
+  }
+  .calc-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .calc-head span{ font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .calc-close{ background:none; border:none; font-size:1rem; color:var(--muted); cursor:pointer; line-height:1; }
+  .calc-display{
+    width:100%; text-align:right; font-family:'IBM Plex Mono',monospace; font-size:1.4rem;
+    padding:12px 10px; border-radius:8px; border:1px solid var(--paper-line); background:var(--paper);
+    margin-bottom:10px; color:var(--navy); overflow-x:auto; white-space:nowrap;
+  }
+  .calc-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .calc-btn{
+    padding:12px 0; border-radius:8px; border:none; background:var(--paper); color:var(--ink);
+    font-size:1rem; font-family:'Inter',sans-serif; cursor:pointer; transition:.1s;
+  }
+  .calc-btn:hover{ background:#e6eaed; }
+  .calc-btn.op{ background:rgba(45,110,99,.12); color:var(--teal); font-weight:600; }
+  .calc-btn.op:hover{ background:rgba(45,110,99,.22); }
+  .calc-btn.eq{ background:var(--navy); color:var(--white); font-weight:600; }
+  .calc-btn.eq:hover{ background:var(--navy-deep); }
+  .calc-btn.clear{ background:rgba(176,58,46,.1); color:var(--danger); font-weight:600; }
+  .calc-btn.clear:hover{ background:rgba(176,58,46,.2); }
+  .calc-btn.wide{ grid-column:span 2; }
+</style>
+</head>
+<body>
+
+<div class="site-header">
+  <div class="logo-mini">
+    <img src="logo.png" alt="Logo" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'logo-fallback',textContent:'Σ'}))">
+    <span class="brandname">Online MCQ Test</span>
+  </div>
+  <button class="calc-toggle-btn hidden" id="calcToggleBtn" type="button">🧮 Calculator</button>
+</div>
+
+<div class="wrap">
+
+  <div class="hero" id="hero">
+    <div class="eyebrow">Online Assessment</div>
+    <h1>Online MCQ Test</h1>
+    <p class="sub" id="heroSub">Sign in with Google to begin.</p>
+  </div>
+
+  <!-- 1. Sign in -->
+  <div class="card" id="signinScreen">
+    <div id="signinBtnHolder"></div>
+    <p class="signin-note">Sign in with Google to continue</p>
+  </div>
+
+  <!-- 2. Instructions -->
+  <div class="card hidden" id="instructionsScreen">
+    <h2>Instructions</h2>
+    <ol>
+      <li>This test contains multiple-choice questions, each with a fixed number of marks.</li>
+      <li>You will see one question at a time. Select an option to enable the Next button.</li>
+      <li>Every question must be answered before you can move to the next one.</li>
+      <li>You cannot go back to a previous question once you move forward.</li>
+      <li>The test is timed — a countdown is shown at the top. The test auto-submits when time runs out.</li>
+      <li>Click Submit Exam on the last question to finish and see your score.</li>
+      <li>A simple calculator is available from the top-right corner if you need it.</li>
+    </ol>
+    <label class="confirm">
+      <input type="checkbox" id="confirmCheck">
+      <span>I have read and understood the instructions above.</span>
+    </label>
+    <button class="primary" id="startBtn" disabled>Start Test</button>
+  </div>
+
+  <!-- 3. Exam -->
+  <div class="hidden" id="examScreen">
+    <div class="exam-grid">
+      <aside class="q-palette">
+        <div class="palette-title">Questions</div>
+        <div class="palette-grid" id="paletteGrid"></div>
+        <div class="palette-legend">
+          <div class="row"><span class="dot unanswered"></span> Unanswered</div>
+          <div class="row"><span class="dot answered"></span> Answered</div>
+        </div>
+      </aside>
+
+      <div class="exam-main">
+        <div id="topBar">
+          <div><span class="lbl">Candidate</span><span class="em" id="candidateEmail"></span></div>
+          <div><span class="lbl" style="text-align:right;">Time left</span><span id="timer">--:--</span></div>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+        <div class="card">
+          <div id="qMeta"></div>
+          <p id="qText"></p>
+          <div id="qImages" class="q-images hidden"></div>
+          <div id="optionsHolder"></div>
+          <div id="remarksBox" class="hidden"></div>
+          <button class="primary" id="nextBtn" disabled>Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Result -->
+  <div class="card hidden" id="resultScreen">
+    <div class="glyph">✓</div>
+    <h2>Test submitted</h2>
+    <div id="scoreLine"></div>
+    <p class="note">Your result has been recorded.</p>
+  </div>
+
+  <footer>ONLINE MCQ TEST</footer>
+</div>
+
+<!-- Calculator -->
+<div class="calc-modal hidden" id="calcModal">
+  <div class="calc-head">
+    <span>Calculator</span>
+    <button class="calc-close" id="calcCloseBtn" type="button">✕</button>
+  </div>
+  <div class="calc-display" id="calcDisplay">0</div>
+  <div class="calc-grid">
+    <button class="calc-btn clear wide" data-action="clear">C</button>
+    <button class="calc-btn clear" data-action="backspace">⌫</button>
+    <button class="calc-btn op" data-op="/">÷</button>
+
+    <button class="calc-btn" data-digit="7">7</button>
+    <button class="calc-btn" data-digit="8">8</button>
+    <button class="calc-btn" data-digit="9">9</button>
+    <button class="calc-btn op" data-op="*">×</button>
+
+    <button class="calc-btn" data-digit="4">4</button>
+    <button class="calc-btn" data-digit="5">5</button>
+    <button class="calc-btn" data-digit="6">6</button>
+    <button class="calc-btn op" data-op="-">−</button>
+
+    <button class="calc-btn" data-digit="1">1</button>
+    <button class="calc-btn" data-digit="2">2</button>
+    <button class="calc-btn" data-digit="3">3</button>
+    <button class="calc-btn op" data-op="+">+</button>
+
+    <button class="calc-btn wide" data-digit="0">0</button>
+    <button class="calc-btn" data-digit=".">.</button>
+    <button class="calc-btn eq" data-action="equals">=</button>
+  </div>
+</div>
+
+<script>
+  // ============== CONFIG — fill these in ==============
+  const GOOGLE_CLIENT_ID = "713885515695-v5c76ugjf9v4u6i5cb4d08g570942t0j.apps.googleusercontent.com";
+  const APPS_SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbyZEr9f61Ucz2WvRfi8m_B1TGBfdlkvvvsIYZUFk1ShjiJtqe-G3VcQV9z4HIuRqCpVXw/exec";
+ 
+  // ======================================================
+
+  let userEmail = null;
+  let questions = [];
+  let currentIndex = 0;
+  let answers = {};              // { questionIndex: optionNumberString }
+  let timeLimitSeconds = 30 * 60;
+  let secondsLeft = 0;
+  let timerHandle = null;
+  let examStartTime = null;
+  let submitted = false;
+
+  function parseJwt(token) {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = decodeURIComponent(atob(base64).split('').map(c =>
+      '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+    ).join(''));
+    return JSON.parse(json);
+  }
+
+  function handleCredentialResponse(response) {
+    const payload = parseJwt(response.credential);
+    userEmail = payload.email;
+    document.getElementById('signinScreen').classList.add('hidden');
+    document.getElementById('heroSub').textContent = 'Please read the instructions below before you begin.';
+    document.getElementById('instructionsScreen').classList.remove('hidden');
+  }
+
+  window.onload = function () {
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleCredentialResponse
+    });
+    google.accounts.id.renderButton(
+      document.getElementById('signinBtnHolder'),
+      { theme: 'outline', size: 'large', shape: 'pill', text: 'signin_with' }
+    );
+  };
+
+  document.getElementById('confirmCheck').addEventListener('change', function (e) {
+    document.getElementById('startBtn').disabled = !e.target.checked;
+  });
+
+  document.getElementById('startBtn').addEventListener('click', function () {
+    this.disabled = true;
+    this.textContent = 'Loading questions...';
+    fetch(APPS_SCRIPT_URL + '?action=getQuestions')
+      .then(r => r.json())
+      .then(data => {
+        questions = data.questions || [];
+        timeLimitSeconds = (data.timeLimitMinutes || 30) * 60;
+        if (questions.length === 0) {
+          alert('No questions were found. Please check the Google Doc formatting.');
+          this.disabled = false;
+          this.textContent = 'Start Test';
+          return;
+        }
+        beginExam();
+      })
+      .catch(err => {
+        alert('Could not load questions: ' + err.message);
+        this.disabled = false;
+        this.textContent = 'Start Test';
+      });
+  });
+
+  function beginExam() {
+    document.body.classList.add('exam-active');
+    document.getElementById('hero').classList.add('hidden');
+    document.getElementById('instructionsScreen').classList.add('hidden');
+    document.getElementById('examScreen').classList.remove('hidden');
+    document.getElementById('candidateEmail').textContent = userEmail;
+    document.getElementById('calcToggleBtn').classList.remove('hidden');
+
+    buildPalette();
+
+    examStartTime = Date.now();
+    secondsLeft = timeLimitSeconds;
+    updateTimerDisplay();
+    timerHandle = setInterval(function () {
+      secondsLeft--;
+      updateTimerDisplay();
+      if (secondsLeft <= 0) {
+        clearInterval(timerHandle);
+        submitExam(true);
+      }
+    }, 1000);
+
+    currentIndex = 0;
+    renderQuestion();
+  }
+
+  function updateTimerDisplay() {
+    const m = Math.max(0, Math.floor(secondsLeft / 60));
+    const s = Math.max(0, secondsLeft % 60);
+    const el = document.getElementById('timer');
+    el.textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    el.classList.toggle('low', secondsLeft <= 60);
+  }
+
+  function buildPalette() {
+    const grid = document.getElementById('paletteGrid');
+    grid.innerHTML = '';
+    questions.forEach(function (q, idx) {
+      const circle = document.createElement('div');
+      circle.className = 'q-circle';
+      circle.id = 'qcircle-' + idx;
+      circle.textContent = idx + 1;
+      grid.appendChild(circle);
+    });
+  }
+
+  function updatePalette() {
+    questions.forEach(function (q, idx) {
+      const circle = document.getElementById('qcircle-' + idx);
+      if (!circle) return;
+      circle.classList.toggle('answered', answers[idx] !== undefined);
+      circle.classList.toggle('current', idx === currentIndex);
+    });
+  }
+
+  function renderQuestion() {
+    const q = questions[currentIndex];
+    document.getElementById('progressFill').style.width = (((currentIndex) / questions.length) * 100) + '%';
+    document.getElementById('qMeta').textContent = 'Question ' + (currentIndex + 1) + ' of ' + questions.length;
+    document.getElementById('qText').textContent = q.questionText;
+
+    // Question images (if any)
+    const qImagesHolder = document.getElementById('qImages');
+    qImagesHolder.innerHTML = '';
+    const qImgs = q.questionImages || [];
+    if (qImgs.length) {
+      qImgs.forEach(src => {
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = 'Question image';
+        qImagesHolder.appendChild(img);
+      });
+      qImagesHolder.classList.remove('hidden');
+    } else {
+      qImagesHolder.classList.add('hidden');
+    }
+
+    const holder = document.getElementById('optionsHolder');
+    holder.innerHTML = '';
+    q.options.forEach(function (optText, idx) {
+      if (!optText) return;
+      const optNum = idx + 1;
+      const optImgs = (q.optionImages && q.optionImages[idx]) || [];
+
+      const wrap = document.createElement('label');
+      wrap.className = 'option';
+
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'opt';
+      radio.value = optNum;
+      if (answers[currentIndex] !== undefined && parseInt(answers[currentIndex], 10) === optNum) {
+        radio.checked = true;
+        wrap.classList.add('selected');
+      }
+
+      const body = document.createElement('div');
+      body.className = 'opt-body';
+
+      const textSpan = document.createElement('span');
+      textSpan.className = 'opt-text';
+      textSpan.textContent = optText;
+      body.appendChild(textSpan);
+
+      optImgs.forEach(src => {
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = 'Option image';
+        body.appendChild(img);
+      });
+
+      radio.addEventListener('change', function () {
+        document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+        wrap.classList.add('selected');
+        document.getElementById('nextBtn').disabled = false;
+        answers[currentIndex] = radio.value;
+        updatePalette();
+      });
+
+      wrap.appendChild(radio);
+      wrap.appendChild(body);
+      holder.appendChild(wrap);
+    });
+
+    const remarksBox = document.getElementById('remarksBox');
+    if (q.remarks) {
+      remarksBox.textContent = 'Note: ' + q.remarks;
+      remarksBox.classList.remove('hidden');
+    } else {
+      remarksBox.classList.add('hidden');
+    }
+
+    const nextBtn = document.getElementById('nextBtn');
+    nextBtn.disabled = answers[currentIndex] === undefined;
+    nextBtn.textContent = (currentIndex === questions.length - 1) ? 'Submit Exam' : 'Next';
+
+    updatePalette();
+  }
+
+  document.getElementById('nextBtn').addEventListener('click', function () {
+    const selected = document.querySelector('.option input[type="radio"]:checked');
+    if (!selected) return; // safety, button should already be disabled
+    answers[currentIndex] = selected.value;
+
+    if (currentIndex === questions.length - 1) {
+      submitExam(false);
+    } else {
+      currentIndex++;
+      renderQuestion();
+    }
+  });
+
+  function submitExam(timedOut) {
+    if (submitted) return;
+    submitted = true;
+    clearInterval(timerHandle);
+
+    document.getElementById('examScreen').classList.add('hidden');
+    document.getElementById('calcToggleBtn').classList.add('hidden');
+    document.getElementById('calcModal').classList.add('hidden');
+    const timeTakenSeconds = Math.round((Date.now() - examStartTime) / 1000);
+
+    fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'submitExam',
+        email: userEmail,
+        answers: answers,
+        timeTakenSeconds: timeTakenSeconds
+      })
+    })
+      .then(r => r.json())
+      .then(result => {
+        const resultScreen = document.getElementById('resultScreen');
+        resultScreen.classList.remove('hidden');
+        if (result.result === 'success') {
+          document.getElementById('scoreLine').textContent = result.score + ' / ' + result.total;
+          if (timedOut) {
+            document.querySelector('#resultScreen p.note').textContent = 'Time ran out — your answers so far were recorded.';
+          }
+        } else {
+          document.getElementById('scoreLine').textContent = 'Submitted';
+          document.querySelector('#resultScreen p.note').textContent = 'There was an issue calculating your score, but your answers were received. (' + (result.error || '') + ')';
+        }
+      })
+      .catch(err => {
+        document.getElementById('resultScreen').classList.remove('hidden');
+        document.getElementById('scoreLine').textContent = 'Submitted';
+        document.querySelector('#resultScreen p.note').textContent = 'Could not confirm your score due to a network error: ' + err.message;
+      });
+  }
+
+  // ---------------- Calculator (simple 4-function) ----------------
+  const calcModal = document.getElementById('calcModal');
+  const calcDisplay = document.getElementById('calcDisplay');
+  document.getElementById('calcToggleBtn').addEventListener('click', () => calcModal.classList.toggle('hidden'));
+  document.getElementById('calcCloseBtn').addEventListener('click', () => calcModal.classList.add('hidden'));
+
+  let calcCurrent = '0';
+  let calcPrevious = null;
+  let calcOperator = null;
+  let calcWaitingForOperand = false;
+
+  function calcUpdateDisplay() { calcDisplay.textContent = calcCurrent; }
+
+  function calcInputDigit(d) {
+    if (calcWaitingForOperand) {
+      calcCurrent = (d === '.') ? '0.' : d;
+      calcWaitingForOperand = false;
+    } else if (d === '.') {
+      if (!calcCurrent.includes('.')) calcCurrent += '.';
+    } else {
+      calcCurrent = (calcCurrent === '0') ? d : calcCurrent + d;
+    }
+    calcUpdateDisplay();
+  }
+
+  function calcCompute(a, b, op) {
+    switch (op) {
+      case '+': return a + b;
+      case '-': return a - b;
+      case '*': return a * b;
+      case '/': return b === 0 ? NaN : a / b;
+      default: return b;
+    }
+  }
+
+  function calcInputOperator(nextOp) {
+    const inputValue = parseFloat(calcCurrent);
+    if (calcPrevious === null) {
+      calcPrevious = inputValue;
+    } else if (!calcWaitingForOperand) {
+      const result = calcCompute(calcPrevious, inputValue, calcOperator);
+      calcCurrent = String(Number.isFinite(result) ? +result.toFixed(10) : 'Error');
+      calcPrevious = parseFloat(calcCurrent);
+      calcUpdateDisplay();
+    }
+    calcWaitingForOperand = true;
+    calcOperator = nextOp;
+  }
+
+  function calcEquals() {
+    if (calcOperator === null || calcPrevious === null) return;
+    const inputValue = parseFloat(calcCurrent);
+    const result = calcCompute(calcPrevious, inputValue, calcOperator);
+    calcCurrent = String(Number.isFinite(result) ? +result.toFixed(10) : 'Error');
+    calcPrevious = null;
+    calcOperator = null;
+    calcWaitingForOperand = true;
+    calcUpdateDisplay();
+  }
+
+  function calcClear() {
+    calcCurrent = '0';
+    calcPrevious = null;
+    calcOperator = null;
+    calcWaitingForOperand = false;
+    calcUpdateDisplay();
+  }
+
+  function calcBackspace() {
+    calcCurrent = calcCurrent.length > 1 ? calcCurrent.slice(0, -1) : '0';
+    calcUpdateDisplay();
+  }
+
+  document.querySelectorAll('.calc-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      if (this.dataset.digit !== undefined) calcInputDigit(this.dataset.digit);
+      else if (this.dataset.op !== undefined) calcInputOperator(this.dataset.op);
+      else if (this.dataset.action === 'equals') calcEquals();
+      else if (this.dataset.action === 'clear') calcClear();
+      else if (this.dataset.action === 'backspace') calcBackspace();
+    });
+  });
+</script>
+</body>
+</html>
